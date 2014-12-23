@@ -2,7 +2,7 @@
   "name": "localdiff",
   "version": "1.0.0",
   "description": "a simple node js file watcher that keeps automatic diffs of files as they are changed. (wip)",
-  "main": "index.js",
+  "main": "./index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -44,7 +44,7 @@
   "analyze": false,
   "preferGlobal": "true",
   "bin": {
-    "localdiff": "./index.js",
-    "ldf": "./index.js"
+    "localdiff": "./bin/localdiff",
+    "ldf": "./bin/localdiff"
   }
 }

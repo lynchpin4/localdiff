@@ -50,6 +50,54 @@ diffwatch.prototype.start = function() {
   }.bind(this));
 }
 
+diffwatch.prototype.getFiles = function(msg, send)
+{
+  send({ msg: 'incoming_files' });
+  var project = this.project;
+  project.find().toArray(function (err, result) {
+    send({
+      msg: 'files',
+      files: result
+    })
+  });
+}
+
+diffwatch.prototype.getFile = function(msg, send)
+{
+  send({ msg: 'incoming_file' });
+  var project = this.project;
+  project.findOne({ key: msg.key }, function (err, result) {
+    send({
+      msg: 'file',
+      file: result
+    })
+  });
+}
+
+diffwatch.prototype.clientCmd = function(msg, send)
+{
+  dw.debug('diffwatcher ws:', JSON.stringify(msg));
+
+  // send the most recent changes, up to limit or default 25
+  if (msg.cmd == "get-recent")
+  {
+
+  }
+
+  if (msg.cmd == "file")
+  {
+    this.getFile(msg, send);
+  }
+
+  if (msg.cmd == "files")
+  {
+    this.getFiles(msg, send);
+  }
+
+  if (msg.cmd == "ping")
+    send({msg: 'pong'});
+}
+
 var originals = {};
 
 // update block to be called after saving other info
@@ -126,10 +174,10 @@ diffwatch.prototype.check = function() {
       return;
     }
 
-  //  if (file.indexOf('.json') != -1) return;
-  //  if (file.indexOf('.txt') != -1) return;
-
     dw.debug('File', file, 'changed size to', stats.size);
+
+    // auto reload watcher (test)
+    setTimeout(function() { if (this.wss) this.wss.broadcast({msg: 'refresh-watcher'}); }.bind(this), 1200);
 
     var key = (file+'').toLowerCase().replace(/\W/g, '').toString();
     var project = this.project;
