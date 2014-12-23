@@ -1,0 +1,50 @@
+{
+  "name": "localdiff",
+  "version": "1.0.0",
+  "description": "a simple node js file watcher that keeps automatic diffs of files as they are changed. (wip)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gstack/localdiff.git"
+  },
+  "keywords": [
+    "file",
+    "watcher",
+    "chokidar",
+    "local",
+    "diff",
+    "utility",
+    "git",
+    "tricks",
+    "thankyoucomeagain"
+  ],
+  "author": "gray (gstack)",
+  "license": "GPL-v3",
+  "bugs": {
+    "url": "https://github.com/gstack/localdiff/issues"
+  },
+  "homepage": "https://github.com/gstack/localdiff",
+  "devDependencies": {},
+  "dependencies": {
+    "child-process-promise": "^1.0.1",
+    "chokidar": "^0.12.5",
+    "colors": "^1.0.3",
+    "express": "^4.10.6",
+    "extend": "^2.0.0",
+    "istextorbinary": "^1.0.0",
+    "optimist": "^0.6.1",
+    "portfinder": "^0.3.0",
+    "sexstatic": "^0.6.0",
+    "tingodb": "^0.3.1",
+    "ws": "^0.6.3"
+  },
+  "analyze": false,
+  "preferGlobal": "true",
+  "bin": {
+    "localdiff": "./index.js",
+    "ldf": "./index.js"
+  }
+}
