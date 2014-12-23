@@ -15,6 +15,8 @@ window.routes['recent'] = function() {
   send({cmd:'recent'});
 }
 
+// WHatever
+
 window.msgHandler['recent'] = function(msg)
 {
   window.recents = msg['files'];
