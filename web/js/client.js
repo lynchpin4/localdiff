@@ -8,6 +8,35 @@ window.routes['404'] = function() {
   location.hash = '404';
 }
 
+// recent route
+window.routes['recent'] = function() {
+  console.log('recent page');
+  $("#recent_page").html('<p class="text-center text-info"><h4>loading recent revisions..'+'</h4></p>');
+  send({cmd:'recent'});
+}
+
+window.msgHandler['recent'] = function(msg)
+{
+  window.recents = msg['files'];
+  console.log('-- window.recents loaded --');
+
+  var activeRev = window.recents.length;
+  $("#files_page").html('<p class="text-center text-info"><h2>Viewing Recent Revisions</h2>(Inactive / blank revisions not shown)</p>');
+  window.recents.reverse();
+  window.recents.forEach(function(item, i) {
+    if (item.diff == "") return;
+
+    $('#files_page').append('<a href="#file/'+item.file+'"><h5>Re. #'+activeRev+' - '+moment(item.timestamp).fromNow()+' - '+ moment(item.timestamp).format('MMMM Do YYYY, h:mm:ss a') +'</h5></a>');
+
+    var code = escapeHtml(item.diff); //.replace(/\n/g, '<br>');
+    $('#files_page').append('<pre class="sh_diff">'+"\n"+code+"\n"+'</pre>');
+    activeRev--;
+  });
+
+  sh_highlightDocument();
+  $('#files_page').show();
+}
+
 // file route
 window.routes['file'] = function() {
   console.log('files page');
@@ -119,7 +148,10 @@ function routeHandler()
     window.fileId = hash.split('/')[1].trim();
   } else if (hash == 'recent') {
     // recent
-    window.route = 'files' || 'construction' || 'recent';
+    window.route = 'recent';
+  } else if (hash == 'revisions') {
+    // recent / revisions
+    window.route = 'recent';
   } else if (hash == 'saved') {
     // snippets
     window.route = 'construction' || 'saved';

@@ -26,7 +26,11 @@ function diffwatch(opts)
   this.revHistory = opts.revHistory;
   this.dbHistory = opts.dbHistory;
 
+  // ready / scanned working dir
   this.ready = false;
+
+  // current list of revisions made this session
+  this.revisions = [];
 
   dw.current = this;
   localdiff.tempDir = opts.tempPath;
@@ -74,14 +78,26 @@ diffwatch.prototype.getFile = function(msg, send)
   });
 }
 
+diffwatch.prototype.getRecent = function(msg, send)
+{
+  send({ msg: 'incoming_recent' });
+  var project = this.project;
+  project.findOne({ key: msg.key }, function (err, result) {
+    send({
+      msg: 'recent',
+      files: this.revisions.slice(-100)
+    })
+  }.bind(this));
+}
+
 diffwatch.prototype.clientCmd = function(msg, send)
 {
   dw.debug('diffwatcher ws:', JSON.stringify(msg));
 
   // send the most recent changes, up to limit or default 25
-  if (msg.cmd == "get-recent")
+  if (msg.cmd == "recent")
   {
-
+    this.getRecent(msg, send);
   }
 
   if (msg.cmd == "file")
@@ -106,7 +122,8 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
   dw.debug('updating id '+oneId, 'type of ',typeof(oneId));
   dw.debug('update diff length: ', obj.diff.length);
 
-  var project = this.project;
+  var project = this.project,
+      scope = this;
 
   // try and update this with set first
   project.update({ _id: oneId }, {
@@ -129,6 +146,13 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
       dw.error(err.stack);
     }
 
+    // add the last revision onto the session stack.
+    var revRec = record;
+    revRec.file = obj.key;
+
+    scope.revisions.push(revRec);
+
+    // check to make sure the revision saved correctly (ensure-write)
     project.findOne({ _id: oneId }, function(err, entry){
       // check for error
       if (err != null)
