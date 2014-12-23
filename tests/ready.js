@@ -1,9 +1,10 @@
 # is it
-# done
 
+# might be.
 
-# yet
+# maybe.
 
-# fucka
+# really is.
 
-#waddup
+# hecka
+#is

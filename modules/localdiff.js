@@ -94,12 +94,15 @@ function diff(p, previous, cb) {
   }
   else
   {
+    // de-base64 from previous.
     if (!Buffer.isBuffer(previous))
       previous = new Buffer(previous);
 
+    // check if it's a text file we're trying to diff
     if (isText.isTextSync(path, previous))
     {
       var previousTemp = path.join(exports.tempDir, _.uniqueId(path.basename(p)));
+      //fs.writeFileSync( path.join(exports.tempDir, 'test-input-previous.txt'), previous);
 
       fs.writeFile(previousTemp, previous, function (err) {
         if (err) {
@@ -138,12 +141,12 @@ function diff(p, previous, cb) {
           var latest = null;
           //utils.debug('got diff:');
           //utils.debug(JSON.stringify({ err: stderr.toString(), out: stdout.toString() }));
-          // test mode
-          //
-          try { latest = fs.readFileSync(p).toString(); } catch (ex) { latest = "err"; utils.warn('could not read: ', ex); }
 
+          // test mode
+          try { latest = fs.readFileSync(p); } catch (ex) { latest = new Buffer("error: "+ex); utils.warn('could not read: ', ex); }
+          
           var key = (p+'').toLowerCase().replace(/\W/g, '');
-          cb(true, { key: key, timestamp: new Date().getTime(), path: p, latest: latest, diff: stdout.toString(), tmp: previousTemp });
+          cb(true, { key: key, timestamp: new Date().getTime(), path: p, text: latest, diff: stdout.toString(), tmp: previousTemp });
         })
 
         /*

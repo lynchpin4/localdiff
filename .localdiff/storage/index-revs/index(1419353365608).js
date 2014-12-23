@@ -23,6 +23,7 @@ var argv = require('optimist')
 .describe('dir', "folder with the files to watch and create a diff log for")
 .argv;
 
+//util.log(argv.dir);
 global.argv = argv;
 
 global.db = null;
@@ -55,7 +56,6 @@ fs.mkdir(DATA_DIR,function(e){
   }
 });
 
-// after data dir is initially created
 function makeInnerDirs() {
   fs.mkdir(STORAGE_DIR,function(e){
     if(!e || (e && e.code === 'EEXIST')) {

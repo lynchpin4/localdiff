@@ -69,6 +69,7 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
   });
 
   // see how that is
+  // actually works lmao
   project.update(
   { _id: oneId },
   {

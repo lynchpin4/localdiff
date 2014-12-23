@@ -1,3 +1,4 @@
 db/*
 storage/*
 node_modules/*
+.localdiff/*

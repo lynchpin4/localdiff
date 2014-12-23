@@ -60,19 +60,13 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
 
   var project = this.project;
 
-  // try and update this with set first
-  project.update({ _id: oneId }, {
-    "$set": {
-      previous: obj.text.toString('base64'),
-      lastUpdate: new Date().getTime()
-    }
-  });
-
-  // see how that is
   project.update(
   { _id: oneId },
   {
     key: obj.key,
+    previous: obj.text.toString('base64'),
+    lastDiff: obj.diff,
+    lastUpdate: new Date().getTime(),
     $push: { revisions: record }
   },
   function(err, result) {
@@ -94,10 +88,13 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
       if (entry != null && entry.revisions != null)
       {
         // show entry info / test debug
-        var lastDiff = entry.revisions[entry.revisions.length-1].diff || null;
-        dw.info("revision history for "+oneId+" contains "+entry.revisions.length+" entries.");
-        dw.debug('updated diff length: ', lastDiff.length);
-        dw.debug('last diff: ', lastDiff);
+        dw.info("revision history for "+oneId+": "+entry.revisions.length+" entries.");
+        dw.debug('updated diff length: ', entry.lastDiff.length);
+        dw.debug('last diff: ', entry.lastDiff);
+
+
+        //fs.writeFileSync('test.json', JSON.stringify(entry));
+        //dw.debug('wrote debug test.json');
       }
       else if (entry != null)
       {
@@ -164,6 +161,7 @@ diffwatch.prototype.check = function() {
                 revisions: [ record ],
 
                 previous: obj.text.toString('base64'),
+                lastDiff: obj.diff,
               });
 
               dw.success('tracking new file '+file);
