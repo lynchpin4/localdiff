@@ -51,6 +51,8 @@ diffwatch.prototype.start = function() {
     util.log('Scanned working directory. ready for changes..');
     this.ready = true;
     this.check();
+
+    this.updateRevisions();
   }.bind(this));
 }
 
@@ -82,14 +84,23 @@ diffwatch.prototype.getRecent = function(msg, send)
 {
   send({ msg: 'incoming_recent' });
   var project = this.project;
-  project.findOne({ key: msg.key }, function (err, result) {
+
+  this.updateRevisions();
+
+  send({
+    msg: 'recent',
+    files: this.revisions2 || this.revisions.slice(-100)
+  })
+
+  /*project.findOne({ key: msg.key }, function (err, result) {
     send({
       msg: 'recent',
-      files: this.revisions.slice(-100)
+      files: this.revisions2 || this.revisions.slice(-100)
     })
-  }.bind(this));
+  }.bind(this)); */
 }
 
+// command from the client, socket rpc
 diffwatch.prototype.clientCmd = function(msg, send)
 {
   dw.debug('diffwatcher ws:', JSON.stringify(msg));
@@ -114,6 +125,73 @@ diffwatch.prototype.clientCmd = function(msg, send)
     send({msg: 'pong'});
 }
 
+// update the revisions -- try to get the list and save
+diffwatch.prototype.updateRevisions = function(record, cb) {
+  var project = this.project;
+  var scope = this;
+
+  if (!this._revisionsId)
+  {
+    project.findOne({ 'type': 'revisions' }, function(err, item){
+      if (item)
+      {
+        this._revisionsId = item._id;
+        dw.debug('loaded revisions list: '+this._revisionsId+' count: '+item.recent.length);
+        this.updateRevisions();
+
+        return;
+      } else if (!item) {
+        dw.warn('had no revisions list');
+        if (!record) return;
+
+        this.project.insert(
+        {
+          'type': 'revisions',
+          'recent': [ record ]
+        });
+        // seems to work
+        dw.debug('added first revisions record');
+      } else if (err) {
+        dw.error('error loading revisions list:', err);
+      }
+    }.bind(this));
+  }
+  else
+  {
+    if (!record)
+    {
+      project.findOne({ 'type': 'revisions' }, function(err, item){
+        if (item && item.recent.length > 1)
+        {
+          // test / delete later
+          dw.debug('loaded revisions list: '+item.recent.length+' entries');
+          scope.revisions2 = item.recent;
+        }
+
+        if (cb)
+          cb(item);
+      }.bind(this));
+
+      return;
+    }
+    dw.debug('updating revisions list '+this._revisionsId);
+    project.update({ _id: this._revisionsId }, {
+      "$set": {
+        'lastUpdate': new Date().getTime()
+      }
+    });
+    project.update({ _id: this._revisionsId },
+    {
+      '$push': { 'recent': { $each: [ record ], $slice: -100 } }
+    }, function(err, result) {
+      if (err != null)
+      {
+        dw.error('error saving revisions list:', err);
+      }
+    });
+  }
+}
+
 var originals = {};
 
 // update block to be called after saving other info
@@ -121,6 +199,12 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
   // update debug (test)
   dw.debug('updating id '+oneId, 'type of ',typeof(oneId));
   dw.debug('update diff length: ', obj.diff.length);
+
+  if (record.diff.trim() == '')
+  {
+    dw.info('skipping diff revision on',obj.key);
+    return;
+  }
 
   var project = this.project,
       scope = this;
@@ -150,7 +234,9 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
     var revRec = record;
     revRec.file = obj.key;
 
+    // todo: rewriting
     scope.revisions.push(revRec);
+    this.updateRevisions(revRec);
 
     // check to make sure the revision saved correctly (ensure-write)
     project.findOne({ _id: oneId }, function(err, entry){
@@ -179,8 +265,8 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
       {
         dw.error('revision history / entry for '+oneId+' null');
       }
-    });
-  }); // update callback (first)
+    }.bind(this));
+  }.bind(this)); // update callback (first)
 } // fn:update
 
 // start listening to change events (called after ready)

@@ -38,7 +38,7 @@
     "lodash": "^2.4.1",
     "optimist": "^0.6.1",
     "portfinder": "^0.3.0",
-    "sexstatic": "^0.6.0",
+    "sexstatic": "^0.6.2",
     "tingodb": "^0.3.1",
     "ws": "^0.6.3"
   },

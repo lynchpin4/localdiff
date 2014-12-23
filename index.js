@@ -231,6 +231,8 @@ function serveHttp(dir, port)
   var app = express();
 
   var extras = {
+    'current-project.json': function() { return getSettings(); },
+    'project.json': function() { return getSettings(); },
     'ws.json': {
       'content-type': 'text/json',
       'content': JSON.stringify({
