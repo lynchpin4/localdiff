@@ -58,18 +58,15 @@ dw.DiffWatcher = diffwatch;
 diffwatch.prototype.start = function() {
   var watcher = this.watcher = new chokidar.FSWatcher({ignored: this.ignored, persistent: true});
 
-  if (this.path && this.path.length > 2)
-  {
-    watcher.add(this.path);
-    log.debug('added: '+this.path+' to watch.');
-  }
-
   if (this.paths && util.isArray(this.paths))
   {
     this.paths.forEach(function(path, index){
       watcher.add(path);
       log.debug('added: '+path+' to watch.');
     });
+  } else if (this.path && this.path.length > 2) {
+    watcher.add(this.path);
+    log.debug('added: '+this.path+' to watch.');
   }
 
   watcher.on('ready', function() {
