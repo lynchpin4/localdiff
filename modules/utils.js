@@ -1,12 +1,13 @@
 var util = require('util'),
     colors = require('colors');
 
+global.DiffWatchUtils = { debug: true };
+
 // heh..
-global.DiffWatchUtils = {
-  debug: true
+var DiffWatchUtils = {
 };
 
-global.DiffWatchUtils.success = function(m)
+DiffWatchUtils.success = function(m)
 {
   if (arguments.length > 1)
   {
@@ -19,7 +20,7 @@ global.DiffWatchUtils.success = function(m)
   util.log(colors.green(m));
 }
 
-global.DiffWatchUtils.info = function(m)
+DiffWatchUtils.info = function(m)
 {
   if (arguments.length > 1)
   {
@@ -32,7 +33,7 @@ global.DiffWatchUtils.info = function(m)
     util.log(colors.white(m));
   }
 
-global.DiffWatchUtils.debug = function(m)
+DiffWatchUtils.debug = function(m)
 {
   if (!global.DiffWatchUtils.debug) return;
 
@@ -47,7 +48,7 @@ global.DiffWatchUtils.debug = function(m)
   util.log(colors.cyan(m));
 }
 
-global.DiffWatchUtils.warn = function(m)
+DiffWatchUtils.warn = function(m)
 {
   if (arguments.length > 1)
   {
@@ -60,7 +61,7 @@ global.DiffWatchUtils.warn = function(m)
   util.log(colors.yellow(m));
 }
 
-global.DiffWatchUtils.error = function(m)
+DiffWatchUtils.error = function(m)
 {
   if (arguments.length > 1)
   {
@@ -73,4 +74,4 @@ global.DiffWatchUtils.error = function(m)
   util.log(colors.red(m));
 }
 
-module.exports = global.DiffWatchUtils;
+module.exports = DiffWatchUtils;

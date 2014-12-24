@@ -1,6 +1,6 @@
 {
   "name": "localdiff",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "description": "a simple node js file watcher that keeps automatic diffs of files as they are changed. (wip)",
   "main": "./index.js",
   "scripts": {

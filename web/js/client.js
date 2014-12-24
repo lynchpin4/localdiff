@@ -178,6 +178,9 @@ function routeHandler()
     $("#alerts").hide();
   }
 
+  // scroll
+  window.scrollTo(0,0);
+
   // hide the page-parts for different pages / show the current ones
   $('.page-part').hide();
   $('.page-'+window.route).show();

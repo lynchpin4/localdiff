@@ -6,87 +6,131 @@ fs = require('fs'),
 util = require('util'),
 chokidar = require('chokidar'),
 colors = require('colors'),
+extend = require('extend'),
 WebSocketServer = require('ws').Server,
 /* another lib i wanna extend right here - baseport needn't be a single one, yadidimean? */
 portfinder = require('portfinder');
 
 /* the custom diffwatch lib we write for this project */
-var diffwatch = require('./diffwatch').DiffWatcher,
+var diffwatch = require('./diffwatch'),
     utils = require('./modules/utils');
 
 var argv = require('optimist')
-.usage('Usage: $0 -dir="C:/path/to/file"')
-.default('dir', path.join(process.cwd()))
-.default('dbpath', null)
-.default('storage', null)
-.default('saverevisions', true)
-.default('dbrevisions', false)
-.default('usemongo', false)
-.describe('dir', "folder with the files to watch and create a diff log for")
-.argv;
-
-global.argv = argv;
+    .usage('Usage: $0 -dir="C:/path/to/file"')
+    .default('path', path.join(process.cwd()))
+    .default('dataPath', null)
+    .default('saverevisions', true)
+    .default('dbrevisions', false)
+    .default('usemongo', false)
+    .describe('path', "folder with the files to watch and create a diff log for")
+  .argv;
 
 global.db = null;
 global.connection = null;
 
-var WORKING_DIR = argv.dir;
-var DATA_DIR = path.join(WORKING_DIR, '.localdiff');
-var DB_DIR = argv.dbpath || path.join(DATA_DIR, 'db');
-var STORAGE_DIR = argv.storage || path.join(DATA_DIR, 'storage');
-var TMP_DIR = path.join(DB_DIR, 'temp');
-
-global.diffWatchOpts = {
-  workingPath: WORKING_DIR,
-  dbPath: DB_DIR,
-  tempPath: TMP_DIR,
-  revHistory: global.argv.saverevisions,
-  dbHistory: global.argv.dbrevisions,
+// instance options
+var diffWatchOpts = {
+  revHistory: argv.saverevisions,
+  dbHistory: argv.dbrevisions,
 
   db: null,
   project: null,
 };
 
-// set the project name as just the current folder
-global.diffWatchOpts.projectName = path.basename(global.diffWatchOpts.workingPath);
+// recaluate paths (after config load)
+function recalculatePaths(dir, dataPath, storagePath, tempPath)
+{
+  // path to the folder to watch
+  if (dir == null)
+    dir = process.cwd();
 
+  // the .localdiff or w.e
+  if (dataPath == null)
+    dataPath = path.join(dir, '.localdiff');
 
-fs.mkdir(DATA_DIR,function(e){
+  // revision files (whole) + other saved storage - meant to be user readable
+  if (storagePath == null)
+    storagePath = path.join(dataPath, 'storage');
+
+  // temporary (but sometimes artifacts from this folder get moved and saved elsewhere)
+  if (tempPath == null)
+    tempPath = path.join(dataPath, 'temp');
+
+  var paths = {
+    workingPath: dir,
+    storagePath: storagePath,
+    dataDir: dataPath,
+    dbPath: path.join(dataPath, 'db'),
+    tempPath: tempPath
+  }
+
+  extend(diffWatchOpts, paths);
+
+  diffwatch.debug('recalculated paths..');
+  //diffwatch.debug(JSON.stringify(diffWatchOpts));
+}
+
+// calculate the paths
+recalculatePaths(argv.path, argv.dataPath);
+
+// set the project name as just the current folder (default)
+if (!diffWatchOpts.projectName)
+  diffWatchOpts.projectName = path.basename(diffWatchOpts.workingPath);
+
+// try and load local config
+var localConfig = path.join(diffWatchOpts.workingPath, 'localdiff.js');
+if (fs.existsSync(localConfig))
+{
+  var config = require(localConfig);
+
+  diffwatch.debug('loaded '+localConfig);
+  extend(diffWatchOpts, config);
+
+  if (diffWatchOpts.project)
+    diffWatchOpts.projectName = diffWatchOpts.project;
+
+  // dir, dataPath, storagePath, tempPath
+  recalculatePaths(diffWatchOpts.workingPath, diffWatchOpts.dataDir, diffWatchOpts.storagePath, diffWatchOpts.tempPath);
+  extend(diffWatchOpts, config);
+}
+
+// create / validate the data dirs.. start
+fs.mkdir(diffWatchOpts.dataDir,function(e){
   if(!e || (e && e.code === 'EEXIST')) {
     makeInnerDirs();
   } else {
     util.log(colors.red(e));
-    util.log(colors.red('could not check / use '+STORAGE_DIR));
+    util.log(colors.red('could not check / use '+diffWatchOpts.storagePath));
   }
 });
 
 // after data dir is initially created
 function makeInnerDirs() {
-  fs.mkdir(STORAGE_DIR,function(e){
+  fs.mkdir(diffWatchOpts.storagePath,function(e){
     if(!e || (e && e.code === 'EEXIST')) {
-      global.diffWatchOpts.storageDir = STORAGE_DIR;
+      diffWatchOpts.storageDir = diffWatchOpts.storagePath;
     } else {
       util.log(colors.red(e));
-      util.log(colors.red('could not check / use '+STORAGE_DIR));
+      util.log(colors.red('could not check / use '+diffWatchOpts.storagePath));
     }
   })
 
   // ensure the DB and TMP dir exist, if not create them
-  fs.mkdir(DB_DIR,function(e){
+  fs.mkdir(diffWatchOpts.dbPath,function(e){
     if(!e || (e && e.code === 'EEXIST')) {
 
-      fs.mkdir(TMP_DIR,function(e){
+      fs.mkdir(diffWatchOpts.tempPath,function(e){
         if(!e || (e && e.code === 'EEXIST')) {
-          connectDb(DB_DIR);
+          connectDb(diffWatchOpts.dbPath);
         } else {
           util.log(colors.red(e));
-          util.log(colors.red('could not generate temporary dir: '+DB_DIR));
+          util.log(colors.red('could not generate temporary dir: '+diffWatchOpts.dbPath));
         }
       });
 
     } else {
       util.log(colors.red(e));
-      util.log(colors.red('could not connect to db: '+DB_DIR));
+      util.log(colors.red('could not connect to db: '+diffWatchOpts.dbPath));
     }
   });
 }
@@ -123,13 +167,13 @@ function connectDb(dir)
   util.log('connecting to db');
 
   var db = getDb(dir);
-  global.diffWatchOpts.db = db;
+  diffWatchOpts.db = db;
 
-  var collectionStr = dir.toString().toLowerCase().replace(/\W/g, '');
-  global.diffWatchOpts.dbCollection = collectionStr;
+  var collectionStr = diffWatchOpts.workingPath.toString().toLowerCase().replace(/\W/g, '');
+  diffWatchOpts.dbCollection = collectionStr;
 
-  var project = db.project = global.diffWatchOpts.project = db.collection(collectionStr);
-  var options = db.projectOptions = global.diffWatchOpts.projectOptions = db.collection(collectionStr+'_options');
+  var project = db.project = diffWatchOpts.project = db.collection(collectionStr);
+  var options = db.projectOptions = diffWatchOpts.projectOptions = db.collection(collectionStr+'_options');
 
   util.log(colors.green('db ready + project collection: '+collectionStr));
 
@@ -140,11 +184,11 @@ function connectDb(dir)
         util.log(colors.red("can't get port."+err));
         return;
       }
-      global.diffWatchOpts.httpPort = port;
+      diffWatchOpts.httpPort = port;
       util.log(colors.gray('using http port: '+port));
 
       // start serving http and run the diffwatcher module
-      serveHttp(WORKING_DIR, port);
+      serveHttp(port);
       run();
     });
   }
@@ -156,7 +200,7 @@ function connectDb(dir)
       return;
     }
 
-    global.diffWatchOpts.wsPort = wsPort;
+    diffWatchOpts.wsPort = wsPort;
     util.log(colors.gray('using ws port: '+wsPort));
 
     // start the websocket server then the http
@@ -222,7 +266,7 @@ function serveWs(port)
   });
 }
 
-function serveHttp(dir, port)
+function serveHttp(port)
 {
   var http = require('http');
   var express = require('express');
@@ -236,11 +280,11 @@ function serveHttp(dir, port)
     'ws.json': {
       'content-type': 'text/json',
       'content': JSON.stringify({
-        'project': global.diffWatchOpts.projectName,
-        'wsPort': global.diffWatchOpts.wsPort,
-        'httpPort': global.diffWatchOpts.httpPort,
+        'project': diffWatchOpts.projectName,
+        'wsPort': diffWatchOpts.wsPort,
+        'httpPort': diffWatchOpts.httpPort,
         'db': {
-          collectionName: global.diffWatchOpts.dbCollection,
+          collectionName: diffWatchOpts.dbCollection,
           engine: global.engine.name
         }
       })
@@ -255,20 +299,20 @@ function serveHttp(dir, port)
 
 function getSettings() {
   var obj = {
-    'project': global.diffWatchOpts.projectName,
-    'wsPort': global.diffWatchOpts.wsPort,
-    'httpPort': global.diffWatchOpts.httpPort,
+    'project': diffWatchOpts.projectName,
+    'wsPort': diffWatchOpts.wsPort,
+    'httpPort': diffWatchOpts.httpPort,
 
     'db': {
-      collectionName: global.diffWatchOpts.dbCollection,
+      collectionName: diffWatchOpts.dbCollection,
       engine: global.engine.name
     },
 
-    'workingPath': global.diffWatchOpts.workingPath,
-    'dbPath': global.diffWatchOpts.dbPath,
-    'tempPath': global.diffWatchOpts.tempPath,
-    'revHistory': global.diffWatchOpts.revHistory,
-    'dbHistory': global.diffWatchOpts.dbHistory
+    'workingPath': diffWatchOpts.workingPath,
+    'dbPath': diffWatchOpts.dbPath,
+    'tempPath': diffWatchOpts.tempPath,
+    'revHistory': diffWatchOpts.revHistory,
+    'dbHistory': diffWatchOpts.dbHistory,
   };
 
   return obj;
@@ -277,7 +321,16 @@ function getSettings() {
 // called once everything is setup.
 function run()
 {
-  global.diff_watch = new diffwatch(global.diffWatchOpts);
+  if (util.isArray(diffWatchOpts.paths))
+  {
+    diffwatch.info('paths overriden in config file');
+  }
+  else
+  {
+    diffWatchOpts.path = diffWatchOpts.workingPath;
+  }
+
+  global.diff_watch = new diffwatch.DiffWatcher(diffWatchOpts);
   global.diff_watch.wss = global.wss;
 }
 

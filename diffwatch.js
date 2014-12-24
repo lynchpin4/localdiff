@@ -3,21 +3,27 @@ var util = require('util'),
     colors = require('colors'),
     fs = require('fs'),
     path = require('path'),
+    util = require('util'),
     /* classes / static imports */
     exec = require('child-process-promise').exec,
     spawn = require('child-process-promise').spawn,
     EventEmitter = require('events').EventEmitter;
 
-var dw = require('./modules/utils'),
+var dw = log = require('./modules/utils'),
     localdiff = require('./modules/localdiff');
 
+// local diff module
 var diff = localdiff.diff;
 
 // an eventemitter, diffwatch is the module containing the logic for updating the mongodb-compatible tingodb setup by index.js
 // and creating the relevant collections for the path.
 function diffwatch(opts)
 {
-  this.path = opts.workingPath;
+  this.opts = opts;
+
+  this.path = opts.path;
+  this.paths = this.opts['paths'];
+
   this.db = opts.db;
   this.storage = opts.storageDir.toLowerCase();
   this.dbPath = opts.dbPath.toLowerCase();
@@ -26,16 +32,20 @@ function diffwatch(opts)
   this.revHistory = opts.revHistory;
   this.dbHistory = opts.dbHistory;
 
+  // default file ignores
+  this.ignored = opts.ignored || /[\/\\]\./;
+
   // ready / scanned working dir
   this.ready = false;
 
   // current list of revisions made this session
   this.revisions = [];
 
-  dw.current = this;
+  dw.currentDiffwatch = this;
+
+  // temp dirs
   localdiff.tempDir = opts.tempPath;
   localdiff.getDiffPath(function(){
-    dw.debug('starting diffwatch');
     this.start();
   }.bind(this));
 }
@@ -46,7 +56,22 @@ dw.DiffWatcher = diffwatch;
 
 // start watching
 diffwatch.prototype.start = function() {
-  var watcher = this.watcher = chokidar.watch(this.path, {ignored: /[\/\\]\./, persistent: true});
+  var watcher = this.watcher = new chokidar.FSWatcher({ignored: this.ignored, persistent: true});
+
+  if (this.path && this.path.length > 2)
+  {
+    watcher.add(this.path);
+    log.debug('added: '+this.path+' to watch.');
+  }
+
+  if (this.paths && util.isArray(this.paths))
+  {
+    this.paths.forEach(function(path, index){
+      watcher.add(path);
+      log.debug('added: '+path+' to watch.');
+    });
+  }
+
   watcher.on('ready', function() {
     util.log('Scanned working directory. ready for changes..');
     this.ready = true;
@@ -60,7 +85,7 @@ diffwatch.prototype.getFiles = function(msg, send)
 {
   send({ msg: 'incoming_files' });
   var project = this.project;
-  project.find().toArray(function (err, result) {
+  project.find({type: 'file'}).toArray(function (err, result) {
     send({
       msg: 'files',
       files: result
@@ -72,7 +97,7 @@ diffwatch.prototype.getFile = function(msg, send)
 {
   send({ msg: 'incoming_file' });
   var project = this.project;
-  project.findOne({ key: msg.key }, function (err, result) {
+  project.findOne({ type: 'file', key: msg.key }, function (err, result) {
     send({
       msg: 'file',
       file: result
@@ -90,20 +115,13 @@ diffwatch.prototype.getRecent = function(msg, send)
   send({
     msg: 'recent',
     files: this.revisions2 || this.revisions.slice(-100)
-  })
-
-  /*project.findOne({ key: msg.key }, function (err, result) {
-    send({
-      msg: 'recent',
-      files: this.revisions2 || this.revisions.slice(-100)
-    })
-  }.bind(this)); */
+  });
 }
 
 // command from the client, socket rpc
 diffwatch.prototype.clientCmd = function(msg, send)
 {
-  dw.debug('diffwatcher ws:', JSON.stringify(msg));
+  //dw.debug('diffwatcher ws:', JSON.stringify(msg));
 
   // send the most recent changes, up to limit or default 25
   if (msg.cmd == "recent")
@@ -293,7 +311,7 @@ diffwatch.prototype.check = function() {
     var project = this.project;
 
     // find existing record by key in db
-    this.project.findOne({ key: key }, function(err, item){
+    this.project.findOne({ key: key, type: 'file' }, function(err, item){
       if (err)
       {
         dw.error('db', err);
@@ -317,6 +335,7 @@ diffwatch.prototype.check = function() {
 
               project.insert({
                 key: obj.key,
+                type: 'file',
                 path: file,
                 lastUpdate: new Date().getTime(),
                 revisions: [ record ],
