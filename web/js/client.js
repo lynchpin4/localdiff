@@ -241,7 +241,7 @@ function send(js)
 $(function(){
   window.onhashchange = routeHandler;
 
-  $.get('/ws.json', function(resp){
+  $.get('ws.json', function(resp){
     console.log('got ws config: '+JSON.stringify(resp));
     window.wsconfig = resp;
     connect();

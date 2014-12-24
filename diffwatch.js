@@ -118,8 +118,6 @@ diffwatch.prototype.getRecent = function(msg, send)
 // command from the client, socket rpc
 diffwatch.prototype.clientCmd = function(msg, send)
 {
-  //dw.debug('diffwatcher ws:', JSON.stringify(msg));
-
   // send the most recent changes, up to limit or default 25
   if (msg.cmd == "recent")
   {
