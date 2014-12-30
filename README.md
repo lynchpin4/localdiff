@@ -9,6 +9,8 @@ a simple node js file watcher that keeps automatic diffs of files as they are ch
 
 part of npm's nice simplicity - pull the development code straight from github
 
+![A picture is worth a thousand words.](http://i.imgur.com/0lo5eUw.png "A picture is worth 1000..")
+
 ## Installation
 
 ```
