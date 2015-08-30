@@ -30,16 +30,14 @@ var tempDir = exports.tempDir = path.join(process.cwd(), 'tmp');
 var useUnifiedDiff = exports.unifiedDiff = true;
 
 function getDiffPath(callback) {
+  console.log('and the platform is: '+os.platform());
   if (os.platform() == 'win32')
   {
     exports.DIFF_PATH = path.join(__dirname, '..', 'bin', 'diff-win', 'bin');
     exports.DIFF_BIN = 'diff.exe';
 
     // only using diff.exe on win
-    if (
-      !useDiffFinder &&
-      (!fs.existsSync(path.join(exports.DIFF_PATH, 'diff.exe')))
-    )
+    if (!useDiffFinder && (!fs.existsSync(path.join(exports.DIFF_PATH, 'diff.exe'))))
     {
       utils.error('ERROR: diff path does not exist. see localdiff.js');
       throw new Error("ERROR: diff not found");
@@ -50,34 +48,33 @@ function getDiffPath(callback) {
   }
   else /* try mac / linux method of executing it */
   {
-    exec('which diff').then(function (result) {
-      var stdout = result.stdout+"";
-      var stderr = result.stderr+"";
-
-      console.log('stdout: ', stdout);
-      console.log('stderr: ', stderr);
-
-      if (fs.existsSync(stdout.trim()))
+    var search = process.env.PATH.split(":");
+    
+    var whichPath;
+    var diffPath;
+    search.forEach(function(folder) {
+      if (fs.existsSync(path.join(folder, "which")))
       {
-        exports.DIFF_PATH = path.join();
-        if (callback)
-          callback(exports.DIFF_PATH);
+        whichPath = path.join(folder, "which");
       }
-      else
+      
+      // test test
+      if (fs.existsSync(path.join(folder, "diff")))
       {
-        utils.error('ERROR: diff path not found by which: ', err);
-        if (!useDiffFinder)
-          throw new Error("ERROR: diff path not found");
+        diffPath = path.join(folder, "diff");
       }
-    })
-    .fail(function (err) {
-      utils.error('ERROR: diff path not found, which didn\'t work: ', err);
-      if (!useDiffFinder)
-        throw new Error("ERROR: diff path not found");
-    })
-    .progress(function (childProcess) {
-      utils.debug('which childProcess.pid: ', childProcess.pid);
     });
+    
+    /*console.log("found full paths: ");
+    console.log(whichPath);
+    console.log(diffPath);*/
+    
+    exports.DIFF_PATH = diffPath;
+    console.log(colors.green('Diff path on this OS: '+exports.DIFF_PATH));
+    
+    // off t
+    if (callback)
+      callback(exports.DIFF_PATH);
   }
 }
 
@@ -99,6 +96,7 @@ function diff(p, previous, cb) {
       previous = new Buffer(previous);
 
     // check if it's a text file we're trying to diff
+    // todo: async waterfall
     if (isText.isTextSync(path, previous))
     {
       var previousTemp = path.join(exports.tempDir, _.uniqueId(path.basename(p)));
@@ -116,10 +114,10 @@ function diff(p, previous, cb) {
           args.push('-u');
 
         var command = (exports.DIFF_BIN + ' ' + args.join(' ')).trim();
-        utils.debug("diff cmd:"+command);
+        utils.debug("diff cmd:"+command);    
 
         var opts = {
-          env: { PATH: exports.DIFF_PATH }
+          env: { PATH: path.dirname(exports.DIFF_PATH) }
         }
 
         exec1(command, opts, function (err, stdout, stderr) {
@@ -139,33 +137,15 @@ function diff(p, previous, cb) {
           }
 
           var latest = null;
-          //utils.debug('got diff:');
-          //utils.debug(JSON.stringify({ err: stderr.toString(), out: stdout.toString() }));
+          utils.debug('got diff:');
+          console.dir({ err: stderr.toString(), out: stdout.toString() });
 
           // test mode
           try { latest = fs.readFileSync(p); } catch (ex) { latest = new Buffer("error: "+ex); utils.warn('could not read: ', ex); }
           
           var key = (p+'').toLowerCase().replace(/\W/g, '');
           cb(true, { key: key, timestamp: new Date().getTime(), path: p, text: latest, diff: stdout.toString(), tmp: previousTemp });
-        })
-
-        /*
-        exec(command).then(function (result) {
-          var latest = null;
-          utils.debug('got diff:');
-          utils.debug(JSON.stringify({ err: result.stderr.toString(), out: result.stdout.toString() }));
-
-          try { latest = fs.readFileSync(p).toString(); } catch (ex) { latest = "err"; utils.warn('could not read: ', ex); }
-
-          var key = (p+'').toLowerCase().replace(/\W/g, '');
-          cb(true, { key: key, path: p, previous: previous.toString(), latest: latest.toString(), diff: result.stdout.toString() });
-        })
-        .fail(function(err){
-          utils.debug('diff: ', err.toString(), "output: \n"+err.stderr.tOString());
-          if (cb)
-            cb(false, { code: 'EDIFFERROR', cmd: command, path: p });
         });
-        */
       }.bind(this));
     }
     else

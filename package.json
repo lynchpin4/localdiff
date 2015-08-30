@@ -17,9 +17,7 @@
     "local",
     "diff",
     "utility",
-    "git",
-    "tricks",
-    "thankyoucomeagain"
+    "git"
   ],
   "author": "gray (gstack)",
   "license": "GPL-v3",

@@ -8,6 +8,7 @@ chokidar = require('chokidar'),
 colors = require('colors'),
 extend = require('extend'),
 WebSocketServer = require('ws').Server,
+ConfigurationBuilder = require('./configuration'),
 /* another lib i wanna extend right here - baseport needn't be a single one, yadidimean? */
 portfinder = require('portfinder');
 
@@ -18,7 +19,7 @@ var diffwatch = require('./diffwatch'),
 var argv = require('optimist')
     .usage('Usage: $0 -dir="C:/path/to/file"')
     .default('path', path.join(process.cwd()))
-    .default('dataPath', null)
+    .default('dataPath', path.join(process.cwd()))
     .default('saverevisions', true)
     .default('dbrevisions', false)
     .default('usemongo', false)
@@ -67,22 +68,22 @@ function recalculatePaths(dir, dataPath, storagePath, tempPath)
   extend(diffWatchOpts, paths);
 
   diffwatch.debug('recalculated paths..');
-  //diffwatch.debug(JSON.stringify(diffWatchOpts));
 }
-
-// calculate the paths
-recalculatePaths(argv.path, argv.dataPath);
 
 // set the project name as just the current folder (default)
 if (!diffWatchOpts.projectName)
   diffWatchOpts.projectName = path.basename(diffWatchOpts.workingPath);
 
+console.log('the opts');
+console.dir(diffWatchOpts);
+
 // try and load local config
-var localConfig = path.join(diffWatchOpts.workingPath, 'localdiff.js');
+var localConfig = path.join(process.cwd(), 'localdiff.js');
+console.log('loading diff config from: '+localConfig);
 if (fs.existsSync(localConfig))
 {
-  var config = require(localConfig);
-
+  var config = JSON.parse(fs.readFileSync(localConfig));
+  
   diffwatch.debug('loaded '+localConfig);
   extend(diffWatchOpts, config);
 
@@ -92,7 +93,23 @@ if (fs.existsSync(localConfig))
   // dir, dataPath, storagePath, tempPath
   recalculatePaths(diffWatchOpts.workingPath, diffWatchOpts.dataDir, diffWatchOpts.storagePath, diffWatchOpts.tempPath);
   extend(diffWatchOpts, config);
+} else {
+  
+  console.dir(argv);
+  console.log('---')
+  
+  // create a default config
+  var configBuilder = new ConfigurationBuilder(argv);
+  var config = configBuilder.createConfig();
+  
+  console.log('No default config found, created one based on the current directory.');
+  console.dir(config);
+  
+  fs.writeFileSync(path.join(config.path, "localdiff.json"), JSON.stringify(config));
+  console.log('wrote config file to '+path.join(config.path, "localdiff.json"));
 }
+
+recalculatePaths(argv.path, argv.dataPath);
 
 // create / validate the data dirs.. start
 fs.mkdir(diffWatchOpts.dataDir,function(e){
@@ -113,7 +130,7 @@ function makeInnerDirs() {
       util.log(colors.red(e));
       util.log(colors.red('could not check / use '+diffWatchOpts.storagePath));
     }
-  })
+  });
 
   // ensure the DB and TMP dir exist, if not create them
   fs.mkdir(diffWatchOpts.dbPath,function(e){
@@ -292,11 +309,13 @@ function serveHttp(port)
   };
 
   app.use(sexstatic({ root: path.join(__dirname, 'web'), extras: extras }));
+  app.use('/files', sexstatic({ root: diffWatchOpts.workingPath }));
+  
   http.createServer(app).listen(port);
-
+  // i dont have much but i take all i got
   util.log(colors.green('serving http port on http://127.0.0.1:'+port+'/'));
 }
-
+// ddd
 function getSettings() {
   var obj = {
     'project': diffWatchOpts.projectName,

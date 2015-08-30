@@ -209,13 +209,15 @@ var originals = {};
 
 // update block to be called after saving other info
 diffwatch.prototype.update = function update(obj, record, oneId) {
-  // update debug (test)
+  // test and again so 
   dw.debug('updating id '+oneId, 'type of ',typeof(oneId));
   dw.debug('update diff length: ', obj.diff.length);
+  dw.debug('record diff:'+record.diff);
 
   if (record.diff.trim() == '')
   {
-    dw.info('skipping diff revision on',obj.key);
+    dw.info('skipping because chokidar doesn\'t work on mac, whole file will be saved as revision.',obj.key);
+    //record.diff = fs.readFileSync(obj.key);
     return;
   }
 
@@ -280,9 +282,9 @@ diffwatch.prototype.update = function update(obj, record, oneId) {
       }
     }.bind(this));
   }.bind(this)); // update callback (first)
-} // fn:update
+}
 
-// start listening to change events (called after ready)
+// start listening to change events (called after ready) ink my whole body i dont give a mothafuck
 diffwatch.prototype.check = function() {
   // closure / this scope
   var scope = this;
@@ -296,8 +298,10 @@ diffwatch.prototype.check = function() {
       dw.debug('file updated in internal dirs. ignoring');
       return;
     }
-
-    dw.debug('File', file, 'changed size to', stats.size);
+    
+    if (!stats) {
+      console.log('Error checking file / stat changes: '+file);
+    } 
 
     // auto reload watcher (test)
     setTimeout(function() { if (this.wss) this.wss.broadcast({msg: 'refresh-watcher'}); }.bind(this), 1200);

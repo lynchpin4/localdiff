@@ -1,11 +1,1 @@
-// LocalDiff config file
-
-var config = {
-  "project": "localdiff-node",
-  "dataDir": "C:/localdiff/",
-  "workingDir": "C:/localdiff/",
-  /*"ignored": /node_modules|\.git/, */
-  "ignored": /[\/\\]\./
-};
-
-module.exports = config;
+{"project":"localdiff","path":"/Users/gray/Projects/localdiff","dataDir":"/Users/gray/Projects/localdiff","workingDir":"/Users/gray/Projects/localdiff","dbrevisions":false,"usemongo":false}

@@ -52,7 +52,13 @@
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">More <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="http://github.com/gstack/localdiff">About</a></li>
+                <li class="dropdown-header">Maintenance</li>
+                <li><a href="#dbcleanup">Cleanup DB</a></li>
+                <li><a href="#console">Console</a></li>
+                <li class="divider"></li>
+                <li class="dropdown-header">Info</li>
+                <li><a href="#stats">Statistics</a></li>
+                <li><a href="#vars">Session Vars</a></li>
                 <li><a href="http://github.com/gstack" target="_blank">Github (@gstack)</a></li>
               </ul>
             </li>

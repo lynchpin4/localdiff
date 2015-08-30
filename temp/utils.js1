@@ -5,8 +5,6 @@ global.DiffWatchUtils = { debug: true };
 
 // heh.. yea
 // all i need is/users/gray/projects/localdiff/storage/diffwatch-revs/diffwatch(1440926661039).js
-// one more drink
-// shit better show 
 var DiffWatchUtils = {
 };
 
